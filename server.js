@@ -12,11 +12,11 @@ const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const paidSessions = new Set();
 
-// Middleware
+// ---------- MIDDLEWARE ----------
 app.use(cors());
-app.use(express.json());
+app.use(express.json()); // Needed for all JSON routes except webhook
 
-// Stripe webhook (must come before bodyParser.json!)
+// ---------- STRIPE WEBHOOK ----------
 app.post('/webhook', bodyParser.raw({ type: 'application/json' }), (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
@@ -24,22 +24,21 @@ app.post('/webhook', bodyParser.raw({ type: 'application/json' }), (req, res) =>
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error('Webhook signature verification failed.', err.message);
+    console.error('❌ Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle successful payment
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    console.log("✅ Payment succeeded. Session ID:", session.id);
+    console.log('✅ Payment succeeded. Session ID:', session.id);
     paidSessions.add(session.id);
   }
 
   res.status(200).json({ received: true });
 });
 
-// Create checkout session
-app.post("/create-checkout-session", async (req, res) => {
+// ---------- CREATE CHECKOUT SESSION ----------
+app.post('/create-checkout-session', async (req, res) => {
   const { template } = req.body;
 
   const prices = {
@@ -65,44 +64,47 @@ app.post("/create-checkout-session", async (req, res) => {
         },
       ],
       mode: 'payment',
-      success_url: 'https://portfolio-builder-sepia.vercel.app/success?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://portfolio-builder-sepia.vercel.app/cancel',
+      success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/cancel`,
     });
 
     res.json({ url: session.url });
-  } catch (error) {
-    console.error("Stripe error:", error);
-    res.status(500).json({ error: "Stripe checkout session failed." });
+  } catch (err) {
+    console.error('❌ Stripe error:', err);
+    res.status(500).json({ error: 'Stripe checkout session failed.' });
   }
 });
 
-// Verify session
-app.get("/verify-session", async (req, res) => {
+// ---------- VERIFY SESSION ----------
+app.get('/verify-session', (req, res) => {
   const { session_id } = req.query;
 
   if (!session_id || !paidSessions.has(session_id)) {
-    return res.status(403).json({ success: false, message: "Payment not verified" });
+    return res.status(403).json({ success: false, message: 'Payment not verified' });
   }
 
   res.json({ success: true });
 });
 
-// Download portfolio
-app.get('/download', async (req, res) => {
+// ---------- DOWNLOAD PORTFOLIO ----------
+app.get('/download', (req, res) => {
   const { session_id } = req.query;
 
   if (!session_id || !paidSessions.has(session_id)) {
-    return res.status(403).json({ error: "Payment not verified" });
+    return res.status(403).json({ error: 'Payment not verified' });
   }
 
   const filePath = path.resolve('output', 'portfolio.html');
+
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: "File not found" });
+    return res.status(404).json({ error: 'File not found' });
   }
 
   res.download(filePath, 'portfolio.html');
 });
 
-// Start server
+// ---------- START SERVER ----------
 const PORT = process.env.PORT || 4242;
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
