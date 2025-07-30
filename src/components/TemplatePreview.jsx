@@ -17,9 +17,10 @@ const TemplatePreview = ({ formData, selectedTemplate }) => {
 
   const handlePurchase = async () => {
     try {
-      const response = await axios.post('http://localhost:4242/create-checkout-session', {
-        template: selectedTemplate,
-      });
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/create-checkout-session`, {
+          template: selectedTemplate,
+        });
+
       window.location.href = response.data.url;
     } catch (err) {
       console.error('Stripe Checkout error:', err);
