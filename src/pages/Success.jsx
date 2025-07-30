@@ -43,7 +43,7 @@ const Success = () => {
 
       for (let i = 0; i < retries; i++) {
         try {
-          const res = await axios.get(`http://localhost:4242/verify-session?session_id=${sessionId}`);
+          const res = await axios.get(`${import.meta.env.VITE_API_URL}/verify-session?session_id=${sessionId}`);
           if (res.data.success) {
             setCanDownload(true);
             setVerifying(false);
