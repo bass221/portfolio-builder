@@ -14,7 +14,7 @@ const Success = () => {
   useEffect(() => {
     let data = location.state?.formData;
 
-    // Fallback to localStorage if state is missing
+    // Fallback to localStorage
     if (!data) {
       try {
         const stored = localStorage.getItem('formData');
@@ -31,19 +31,19 @@ const Success = () => {
           : [];
       }
       setFormData(data);
-      verifyPayment(); // only verify if data found
+      verifyPayment(); // only verify if data exists
     } else {
       navigate('/');
     }
 
     async function verifyPayment(retries = 5) {
       const urlParams = new URLSearchParams(location.search);
-      const sessionId = urlParams.get('session_id');
-      if (!sessionId) return navigate('/');
+      const orderId = urlParams.get('orderId');
+      if (!orderId) return navigate('/');
 
       for (let i = 0; i < retries; i++) {
         try {
-          const res = await axios.get(`${import.meta.env.VITE_API_URL}/verify-session?session_id=${sessionId}`);
+          const res = await axios.get(`${import.meta.env.VITE_API_URL}/verify-paypal-order?orderId=${orderId}`);
           if (res.data.success) {
             setCanDownload(true);
             setVerifying(false);
@@ -52,11 +52,9 @@ const Success = () => {
         } catch (error) {
           console.warn(`Retry ${i + 1} failed:`, error.message);
         }
-        // wait 1.5s between retries
         await new Promise(resolve => setTimeout(resolve, 1500));
       }
 
-      // Failed after all retries
       alert("Payment verification failed or expired.");
       navigate('/');
     }

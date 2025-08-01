@@ -1,7 +1,7 @@
 import React from 'react';
-import axios from 'axios';
 import MinimalTemplate from '../templates/MinimalTemplate';
 import CreativeTemplate from '../templates/CreativeTemplate';
+import PayPalButton from '../components/PayPalButton'; // ✅ NEW import
 
 const TemplatePreview = ({ formData, selectedTemplate }) => {
   const renderTemplate = () => {
@@ -12,19 +12,6 @@ const TemplatePreview = ({ formData, selectedTemplate }) => {
         return <CreativeTemplate formData={formData} />;
       default:
         return <p className="text-center text-zinc-400">Please select a template to preview.</p>;
-    }
-  };
-
-  const handlePurchase = async () => {
-    try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/create-checkout-session`, {
-          template: selectedTemplate,
-        });
-
-      window.location.href = response.data.url;
-    } catch (err) {
-      console.error('Stripe Checkout error:', err);
-      alert('Something went wrong. Please try again later.');
     }
   };
 
@@ -39,12 +26,9 @@ const TemplatePreview = ({ formData, selectedTemplate }) => {
       </div>
 
       <div className="mt-6 text-center">
-        <button
-          onClick={handlePurchase}
-          className="px-6 py-2 rounded bg-gold text-black font-semibold hover:bg-yellow-300 transition"
-        >
-          💳 Buy & Download
-        </button>
+        <div className="inline-block">
+          <PayPalButton template={selectedTemplate} />
+        </div>
       </div>
     </div>
   );

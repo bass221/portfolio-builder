@@ -10,6 +10,7 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@paypal/react-paypal-js": "^8.8.3",
     "@stripe/stripe-js": "^7.6.1",
     "archiver": "^7.0.1",
     "axios": "^1.11.0",
