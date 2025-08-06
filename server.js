@@ -14,8 +14,9 @@ const formStore = new Map();
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
-  process.env.FRONTEND_URL,
+  'https://portfolio-builder-sepia.vercel.app', // your actual deployed frontend
 ];
+
 
 // ✅ Apply middleware FIRST
 app.use(cors({
