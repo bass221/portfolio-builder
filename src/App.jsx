@@ -1,30 +1,19 @@
-// App.jsx
+// src/App.jsx
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { CustomizationProvider } from './context/CustomizationContext';
+import { Routes, Route } from 'react-router-dom';
 import Builder from './pages/Builder';
 import Success from './pages/Success';
-import { PayPalScriptProvider } from '@paypal/react-paypal-js';
+import { CustomizationProvider } from './context/CustomizationContext';
 
-function App() {
+const App = () => {
   return (
     <CustomizationProvider>
-      <PayPalScriptProvider
-        options={{
-          clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID,
-          currency: 'USD',
-          intent: 'capture',
-        }}
-      >
-        <Router>
-          <Routes>
-            <Route path="/" element={<Builder />} />
-            <Route path="/success" element={<Success />} />
-          </Routes>
-        </Router>
-      </PayPalScriptProvider>
+      <Routes>
+        <Route path="/" element={<Builder />} />
+        <Route path="/success" element={<Success />} />
+      </Routes>
     </CustomizationProvider>
   );
-}
+};
 
 export default App;

@@ -1,113 +1,120 @@
-// src/pages/Success.jsx
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { generateHTMLFile } from '../utils/generateHTML';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { generateHTMLFile } from '../utils/generateHTML';
 
-const Success = () => {
+export default function Success() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [formData, setFormData] = useState(null);
-  const [canDownload, setCanDownload] = useState(false);
-  const [verifying, setVerifying] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(true);
 
-  useEffect(() => {
-    let data = location.state?.formData;
+  // ✅ Validate form structure
+  const isFormValid = (data) => {
+    const requiredFields = ['name', 'role', 'location', 'bio', 'contact'];
+    const basicValid = requiredFields.every(field => data[field]);
 
-    // Fallback to localStorage
-    if (!data) {
-      try {
-        const stored = localStorage.getItem('formData');
-        if (stored) data = JSON.parse(stored);
-      } catch (err) {
-        console.error('Error parsing localStorage data:', err);
-      }
-    }
+    const projectsValid = data.template !== 'creative' || (
+      Array.isArray(data.projects) &&
+      data.projects.every(p => p.title && p.link)
+    );
 
-    if (data && typeof data === 'object') {
-      if (!Array.isArray(data.skills)) {
-        data.skills = typeof data.skills === 'string'
-          ? data.skills.split(',').map(s => s.trim())
-          : [];
-      }
-      setFormData(data);
-      verifyPayment(); // only verify if data exists
-    } else {
-      navigate('/');
-    }
+    return basicValid && projectsValid;
+  };
 
-    async function verifyPayment(retries = 5) {
-      const urlParams = new URLSearchParams(location.search);
-      const orderId = urlParams.get('orderId');
-      if (!orderId) return navigate('/');
+useEffect(() => {
+  const sessionId = new URLSearchParams(window.location.search).get('session_id');
 
-      for (let i = 0; i < retries; i++) {
-        try {
-          const res = await axios.get(`${import.meta.env.VITE_API_URL}/verify-paypal-order?orderId=${orderId}`);
-          if (res.data.success) {
-            setCanDownload(true);
-            setVerifying(false);
-            return;
-          }
-        } catch (error) {
-          console.warn(`Retry ${i + 1} failed:`, error.message);
-        }
-        await new Promise(resolve => setTimeout(resolve, 1500));
-      }
+  if (!sessionId) {
+    alert('⚠️ No session ID found.');
+    return navigate('/');
+  }
 
-      alert("Payment verification failed or expired.");
-      navigate('/');
-    }
-  }, [location, navigate]);
-
-  const handleDownload = () => {
-    if (!formData) {
-      alert('No form data found. Please rebuild your portfolio.');
-      return;
-    }
-
-    if (!canDownload) {
-      alert('Payment not verified. Please try again.');
-      return;
-    }
-
+  const verifySession = async () => {
     try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/verify-stripe-session?session_id=${sessionId}`
+      );
+
+      const { success, formData } = res.data;
+
+      if (!success || !formData || !isFormValid(formData)) {
+        alert('❌ Invalid or incomplete form data.');
+        return navigate('/');
+      }
+
+      setFormData(formData);
+      localStorage.setItem('formData', JSON.stringify(formData));
       generateHTMLFile(formData);
+      setIsGenerating(false);
+
     } catch (err) {
-      console.error('Download error:', err);
-      alert('Something went wrong. Try again later.');
+      console.error('❌ Stripe verification error:', err);
+      alert('❌ Payment verification failed.');
+      navigate('/');
     }
   };
 
+  verifySession();
+}, [navigate]);
+
+
+  // 🧹 Optional: clear data after generation
+  useEffect(() => {
+    if (formData) {
+      localStorage.removeItem('formData'); // ❌ Comment out if you want to keep it for redownloads
+    }
+  }, [formData]);
+
+  const handleRedownload = () => {
+    const saved = localStorage.getItem('formData');
+    if (saved) {
+      try {
+        generateHTMLFile(JSON.parse(saved));
+      } catch (err) {
+        alert('❌ Failed to re-generate file.');
+      }
+    } else {
+      alert('⚠️ No saved form data found.');
+    }
+  };
+
+  const handleClearAndReturn = () => {
+    localStorage.removeItem('formData');
+    alert('🧹 Data cleared.');
+    navigate('/');
+  };
+
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-4 text-center">
-      <h1 className="text-4xl font-bold text-gold mb-2">🎉 Success!</h1>
-      <p className="text-white text-lg mb-6">
-        {verifying
-          ? "Verifying your payment..."
-          : "Your portfolio is ready to download."}
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6 text-center">
+      <h1 className="text-4xl font-bold text-yellow-400 mb-2">🎉 Payment Successful!</h1>
+      <p className="text-lg mb-4">
+        {isGenerating ? 'Generating your portfolio...' : 'Your portfolio is ready ✅'}
       </p>
 
-      <button
-        onClick={handleDownload}
-        disabled={!canDownload}
-        className={`px-6 py-2 rounded-xl font-semibold mb-4 transition ${
-          canDownload
-            ? "bg-gold text-black hover:bg-yellow-400"
-            : "bg-gray-600 text-gray-300 cursor-not-allowed"
-        }`}
-      >
-        {canDownload ? "Download Portfolio" : "Verifying..."}
-      </button>
+      {!isGenerating && (
+        <>
+          <button
+            onClick={handleRedownload}
+            className="px-6 py-2 rounded-xl font-semibold mb-3 bg-yellow-400 text-black hover:bg-yellow-300 transition"
+          >
+            📁 Download Again
+          </button>
+
+          <button
+            onClick={handleClearAndReturn}
+            className="text-sm text-red-400 hover:text-red-300 mb-4"
+          >
+            🧹 Clear Data & Return
+          </button>
+        </>
+      )}
 
       <button
         onClick={() => navigate('/')}
-        className="text-sm underline text-gold hover:text-yellow-400 transition"
+        className="text-sm underline text-yellow-400 hover:text-yellow-300 transition"
       >
-        Return to Builder
+        ← Back to Builder
       </button>
     </div>
   );
-};
-
-export default Success;
+}
